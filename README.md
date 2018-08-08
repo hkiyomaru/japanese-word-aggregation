@@ -42,6 +42,9 @@ $ cat data/input.txt
 1年生
 １年生
 一年生
+12月
+１２月
+十二月
 ```
 
 Run the script for aggregation.
@@ -54,19 +57,22 @@ You'll get the result as a tab-separated file which includes original words and 
 
 ```
 $ cat data/output.txt
-こんにちは      0
-こんにちわ      1  # TODO: Access ConceptNet to retrieve `Sysnonym` and `FormOf` of words
-いぬ    2
-犬      2
-イヌ    2
-ねこ    3
-ネコ    3
-猫      3
-鰤大根  4
-ぶり大根        4
-1年生   5
-１年生  5
-一年生  6  # TODO: Convert Kansuji to Arabic numerals
+こんにちは	0
+こんにちわ	1  # TODO: Access ConceptNet to retrieve `Sysnonym` and `FormOf` of words
+いぬ	2
+犬	2
+イヌ	2
+ねこ	3
+ネコ	3
+猫	3
+鰤大根	4
+ぶり大根	4
+1年生	5
+１年生	5
+一年生	5
+12月	6
+１２月	6
+十二月	6
 ```
 
 ## Lisence

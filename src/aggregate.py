@@ -1,6 +1,7 @@
 """Aggregate name by the repname."""
 import argparse
 import datetime
+import re
 
 import progressbar
 import zenhan
@@ -38,8 +39,59 @@ def preprocess_word(words):
     :return: preprocessed word
 
     """
-    # TODO: convert Kansuji to Arabic numerals
     return [zenhan.h2z(word) for word in words]
+
+
+def kansuji2arabic(kstring):
+    """
+
+    :param kstring: word which indicates a number
+    :return: word represented by Arabic numerals
+
+    """
+    # https://qiita.com/cof/items/58ddf898db25db561a54
+    tt_ksuji = str.maketrans('一二三四五六七八九〇壱弐参', '1234567890123')
+    re_suji = re.compile(r'[十拾百千万億兆\d]+')
+    re_kunit = re.compile(r'[十拾百千]|\d+')
+    re_manshin = re.compile(r'[万億兆]|[^万億兆]+')
+    TRANSUNIT = {
+        '十': 10,
+        '拾': 10,
+        '百': 100,
+        '千': 1000
+    }
+    TRANSMANS = {
+        '万': 10000,
+        '億': 100000000,
+        '兆': 1000000000000
+    }
+
+    def _transvalue(sj, re_obj=re_kunit, transdic=TRANSUNIT):
+        unit = 1
+        result = 0
+        for piece in reversed(re_obj.findall(sj)):
+            if piece in transdic:
+                if unit > 1:
+                    result += unit
+                unit = transdic[piece]
+            else:
+                val = int(piece) if piece.isdecimal() else _transvalue(piece)
+                result += val * unit
+                unit = 1
+
+        if unit > 1:
+            result += unit
+
+        return result
+
+    transuji = kstring.translate(tt_ksuji)
+    for suji in sorted(set(re_suji.findall(transuji)), key=lambda s: len(s), reverse=True):
+        if not suji.isdecimal():
+            arabic = _transvalue(suji, re_manshin, TRANSMANS)
+            arabic = str(arabic)
+            transuji = transuji.replace(suji, arabic)
+
+    return zenhan.h2z(transuji)
 
 
 def get_repname_set(words):
@@ -54,10 +106,15 @@ def get_repname_set(words):
     bar = progressbar.ProgressBar()
     repname_sets = []
     for word in bar(words, max_value=n_word):
+        repname_set = []
         r = juman.analysis(word)
-        # preserve ambiguity
-        repname_set = [tuple(mrph.repnames().split('?')) if mrph.repnames() else mrph.midasi
-                       for mrph in r.mrph_list()]
+        for mrph in r.mrph_list():
+            if mrph.bunrui == '数詞':
+                repname_set.append(tuple(kansuji2arabic(mrph.midasi)))
+            elif mrph.repnames() != '':
+                repname_set.append(tuple(mrph.repnames().split('?')))
+            else:
+                repname_set.append(tuple([mrph.midasi]))
         repname_sets.append(expand_ambiguity(repname_set))
     return repname_sets
 
@@ -132,10 +189,10 @@ def main():
 
     print('[{}] Loading data... '.format(datetime.datetime.now()))
     words = load_file(args.IN)
-    words_prerprocessed = preprocess_word(words)
+    prerprocessed_words = preprocess_word(words)
 
     print('[{}] Getting repname for data... '.format(datetime.datetime.now()))
-    repname_sets = get_repname_set(words_prerprocessed)
+    repname_sets = get_repname_set(prerprocessed_words)
 
     print('[{}] Aggregating words... '.format(datetime.datetime.now()))
     out = aggregate(words, repname_sets)
