@@ -1,7 +1,7 @@
 # Japanese Name Aggregation
 
 A simple command-line tool to aggregate Japanese words.
-The aggregation is based on the representative name of words given by Juman++.
+The aggregation is based on Juman++[Morita+ 15] and ConceptNet5.5[Speer+ 17].
 
 ## Development Environment
 
