@@ -49,7 +49,7 @@ Run the script for aggregation.
 $ python src/aggregate.py data/input.txt data/output.txt
 ```
 
-You'll get the result as a tab-separated file which includes original words and ID to aggregate.
+You'll get the result as a tab-separated file which includes original words and the IDs to aggregate.
 
 ```
 $ cat data/output.txt
