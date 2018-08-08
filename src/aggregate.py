@@ -28,19 +28,17 @@ def load_file(path):
     n_line = count_line(path)
     bar = progressbar.ProgressBar()
     with open(path) as f:
-        return [preprocess_word(word) for word in bar(f, max_value=n_line)]
+        return [word.strip() for word in bar(f, max_value=n_line)]
 
 
-def preprocess_word(word):
+def preprocess_word(words):
     """
 
-    :param word: word to be preprocessed
+    :param words: a list of words to be preprocessed
     :return: preprocessed word
 
     """
-    word = word.strip()
-    word = zenhan.h2z(word)
-    return word
+    return [zenhan.h2z(word) for word in words]
 
 
 def get_repname_set(words):
@@ -131,9 +129,10 @@ def main():
 
     print('[{}] Loading data... '.format(datetime.datetime.now()))
     words = load_file(args.IN)
+    words_prerprocessed = preprocess_word(words)
 
     print('[{}] Getting repname for data... '.format(datetime.datetime.now()))
-    repname_sets = get_repname_set(words)
+    repname_sets = get_repname_set(words_prerprocessed)
 
     print('[{}] Aggregating words... '.format(datetime.datetime.now()))
     out = aggregate(words, repname_sets)
