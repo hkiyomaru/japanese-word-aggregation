@@ -1,4 +1,4 @@
-"""Aggregate name by the repname."""
+"""Aggregate name by Juman++ and ConceptNet."""
 import argparse
 import datetime
 import re
