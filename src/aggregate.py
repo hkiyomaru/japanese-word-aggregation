@@ -95,11 +95,11 @@ def kansuji2arabic(kstring):
     return zenhan.h2z(transuji)
 
 
-def get_repname_set(words):
+def append_repname(words):
     """
 
     :param words: words in input file
-    :return: a list of sets of representative names for the words
+    :return: a list of sets of original words and the representative names
 
     """
     n_word = len(words)
@@ -108,6 +108,7 @@ def get_repname_set(words):
     repname_sets = []
     for word in bar(words, max_value=n_word):
         repname_set = []
+        midasi = ''
         r = juman.analysis(word)
         for mrph in r.mrph_list():
             if mrph.bunrui == '数詞':
@@ -116,7 +117,8 @@ def get_repname_set(words):
                 repname_set.append(tuple(mrph.repnames().split('?')))
             else:
                 repname_set.append(tuple([mrph.midasi]))
-        repname_sets.append(expand_ambiguity(repname_set))
+            midasi += mrph.midasi
+        repname_sets.append(expand_ambiguity(repname_set) + tuple([midasi]))
     return repname_sets
 
 
@@ -128,7 +130,7 @@ def expand_ambiguity(repname):
 
     """
     def product_tuple(t1, t2):
-        return tuple([_t1 + _t2 for _t1 in t1 for _t2 in t2])
+        return tuple([(_t1 + ' ' + _t2).strip() for _t1 in t1 for _t2 in t2])
 
     expanded_repname = tuple([''])
     for _repname in repname:
@@ -140,7 +142,7 @@ def aggregate(words, repname_sets):
     """
 
     :param words: words in input file
-    :param repname_sets: a list of sets of representative names for the words
+    :param repname_sets: a list of sets of original words and the representative names
     :return: words with aggregated ID
 
     """
@@ -167,7 +169,8 @@ def aggregate(words, repname_sets):
 
         nodes = []
         for repname in repname_set_to_merge:
-            nodes.extend(request_conceptnet(repname.split('/')[0], rels=['Synonym', 'FormOf']))
+            query = ''.join([_repname.split('/')[0] for _repname in repname.split(' ')])
+            nodes.extend(request_conceptnet(query, rels=['Synonym', 'FormOf']))
         for j, _repname_set_to_merge in enumerate(repname_sets_to_merge[i+1:]):
             for repname in _repname_set_to_merge:
                 if repname.split('/')[0] in nodes:
@@ -189,22 +192,22 @@ def aggregate(words, repname_sets):
     return word_with_id
 
 
-def request_conceptnet(repname, rels):
+def request_conceptnet(query, rels):
     """
 
-    :param repname: a concept to request to ConceptNet
+    :param query: a concept to request to ConceptNet
     :param rels: relations to filter edges
     :return: concepts to which repname is connected by rels
 
     """
     nodes = []
-    url = 'http://api.conceptnet.io/c/ja/{}'.format(repname)
+    url = 'http://api.conceptnet.io/c/ja/{}'.format(query)
     obj = requests.get(url).json()
     for edge in obj['edges']:
         if edge['rel']['label'] in rels:
-            if edge['start']['language'] == 'ja' and edge['start']['label'] != repname:
+            if edge['start']['language'] == 'ja' and edge['start']['label'] != query:
                 nodes.append(edge['start']['label'])
-            if edge['end']['language'] == 'ja' and edge['end']['label'] != repname:
+            if edge['end']['language'] == 'ja' and edge['end']['label'] != query:
                 nodes.append(edge['end']['label'])
     return nodes
 
@@ -232,7 +235,7 @@ def main():
     prerprocessed_words = preprocess_word(words)
 
     print('[{}] Getting repname for data... '.format(datetime.datetime.now()))
-    repname_sets = get_repname_set(prerprocessed_words)
+    repname_sets = append_repname(prerprocessed_words)  # include original words as well
 
     print('[{}] Aggregating words... '.format(datetime.datetime.now()))
     out = aggregate(words, repname_sets)
