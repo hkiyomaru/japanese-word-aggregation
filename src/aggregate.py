@@ -111,7 +111,7 @@ def get_repname_set(words):
         r = juman.analysis(word)
         for mrph in r.mrph_list():
             if mrph.bunrui == '数詞':
-                repname_set.append(tuple(kansuji2arabic(mrph.midasi)))
+                repname_set.append(tuple([kansuji2arabic(mrph.midasi)]))
             elif mrph.repnames() != '':
                 repname_set.append(tuple(mrph.repnames().split('?')))
             else:
