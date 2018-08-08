@@ -38,6 +38,7 @@ def preprocess_word(words):
     :return: preprocessed word
 
     """
+    # TODO: convert Kansuji to Arabic numerals
     return [zenhan.h2z(word) for word in words]
 
 
@@ -55,7 +56,8 @@ def get_repname_set(words):
     for word in bar(words, max_value=n_word):
         r = juman.analysis(word)
         # preserve ambiguity
-        repname_set = [tuple(mrph.repnames().split('?')) for mrph in r.mrph_list()]
+        repname_set = [tuple(mrph.repnames().split('?')) if mrph.repnames() else mrph.midasi
+                       for mrph in r.mrph_list()]
         repname_sets.append(expand_ambiguity(repname_set))
     return repname_sets
 
@@ -84,6 +86,7 @@ def aggregate(words, repname_sets):
     :return: words with aggregated ID
 
     """
+    # TODO: Access ConceptNet to retrieve `Sysnonym` and `FormOf` of words
     # build a list of set to be merged
     repname_sets_to_merge = [set(repname_sets[0])]
     for repname_set in repname_sets[1:]:

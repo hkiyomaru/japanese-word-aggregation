@@ -30,6 +30,7 @@ You can see a sample input file. Put one word per one line.
 ```
 $ cat data/input.txt
 こんにちは
+こんにちわ
 いぬ
 犬
 イヌ
@@ -39,8 +40,8 @@ $ cat data/input.txt
 鰤大根
 ぶり大根
 1年生
-一年生
 １年生
+一年生
 ```
 
 Run the script for aggregation.
@@ -53,18 +54,19 @@ You'll get the result as a tab-separated file which includes original words and 
 
 ```
 $ cat data/output.txt
-こんにちは	0
-いぬ	1
-犬	1
-イヌ	1
-ねこ	2
-ネコ	2
-猫	2
-鰤大根	3
-ぶり大根	3
-1年生	4
-一年生	4
-１年生	4
+こんにちは      0
+こんにちわ      1  # TODO: Access ConceptNet to retrieve `Sysnonym` and `FormOf` of words
+いぬ    2
+犬      2
+イヌ    2
+ねこ    3
+ネコ    3
+猫      3
+鰤大根  4
+ぶり大根        4
+1年生   5
+１年生  5
+一年生  6  # TODO: Convert Kansuji to Arabic numerals
 ```
 
 ## Lisence
