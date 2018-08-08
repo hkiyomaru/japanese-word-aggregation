@@ -2,6 +2,7 @@
 import argparse
 import datetime
 import re
+import requests
 
 import progressbar
 import zenhan
@@ -143,10 +144,11 @@ def aggregate(words, repname_sets):
     :return: words with aggregated ID
 
     """
-    # TODO: Access ConceptNet to retrieve `Sysnonym` and `FormOf` of words
-    # build a list of set to be merged
+    # build a list of repname sets to be merged
+    print('[{}] Merging repname sets by the overlap... '.format(datetime.datetime.now()))
+    bar = progressbar.ProgressBar()
     repname_sets_to_merge = [set(repname_sets[0])]
-    for repname_set in repname_sets[1:]:
+    for repname_set in bar(repname_sets[1:], max_value=len(repname_sets)-1):
         repname_set = set(repname_set)
         for i, repname_set_to_merge in enumerate(repname_sets_to_merge):
             if len(repname_set & repname_set_to_merge) > 0:
@@ -154,6 +156,24 @@ def aggregate(words, repname_sets):
                 break
         else:
             repname_sets_to_merge.append(repname_set)
+
+    # merge repname sets by using ConceptNet through the Web API
+    print('[{}] Merging repname sets by ConceptNet... '.format(datetime.datetime.now()))
+    bar = progressbar.ProgressBar()
+    merged = [False] * len(repname_sets_to_merge)
+    for i, repname_set_to_merge in bar(enumerate(repname_sets_to_merge), max_value=len(repname_sets_to_merge)):
+        if merged[i] is True:
+            continue
+
+        nodes = []
+        for repname in repname_set_to_merge:
+            nodes.extend(request_conceptnet(repname.split('/')[0], rels=['Synonym', 'FormOf']))
+        for j, _repname_set_to_merge in enumerate(repname_sets_to_merge[i+1:]):
+            for repname in _repname_set_to_merge:
+                if repname.split('/')[0] in nodes:
+                    repname_sets_to_merge[i] |= repname_sets_to_merge[i+j+1]
+                    merged[i+j+1] = True
+    repname_sets_to_merge = [s for s, flag in zip(repname_sets_to_merge, merged) if flag is False]
 
     # assign IDs for each set
     repname2id = {}
@@ -167,6 +187,26 @@ def aggregate(words, repname_sets):
         repname = repname_set[0]
         word_with_id.append((word, repname2id[repname]))
     return word_with_id
+
+
+def request_conceptnet(repname, rels):
+    """
+
+    :param repname: a concept to request to ConceptNet
+    :param rels: relations to filter edges
+    :return: concepts to which repname is connected by rels
+
+    """
+    nodes = []
+    url = 'http://api.conceptnet.io/c/ja/{}'.format(repname)
+    obj = requests.get(url).json()
+    for edge in obj['edges']:
+        if edge['rel']['label'] in rels:
+            if edge['start']['language'] == 'ja' and edge['start']['label'] != repname:
+                nodes.append(edge['start']['label'])
+            if edge['end']['language'] == 'ja' and edge['end']['label'] != repname:
+                nodes.append(edge['end']['label'])
+    return nodes
 
 
 def save(path, out):
@@ -196,6 +236,8 @@ def main():
 
     print('[{}] Aggregating words... '.format(datetime.datetime.now()))
     out = aggregate(words, repname_sets)
+
+    print('[{}] Writing the result... '.format(datetime.datetime.now()))
     save(args.OUT, out)
 
 
