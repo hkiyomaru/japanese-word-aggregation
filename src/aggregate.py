@@ -173,7 +173,7 @@ def aggregate(words, repname_sets):
             nodes.extend(request_conceptnet(query, rels=['Synonym', 'FormOf']))
         for j, _repname_set_to_merge in enumerate(repname_sets_to_merge[i+1:]):
             for repname in _repname_set_to_merge:
-                if repname.split('/')[0] in nodes:
+                if ''.join([_repname.split('/')[0] for _repname in repname.split(' ')]) in nodes:
                     repname_sets_to_merge[i] |= repname_sets_to_merge[i+j+1]
                     merged[i+j+1] = True
     repname_sets_to_merge = [s for s, flag in zip(repname_sets_to_merge, merged) if flag is False]
