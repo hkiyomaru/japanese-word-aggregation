@@ -78,3 +78,8 @@ $ cat data/output.txt
 ## Lisence
 
 - MIT
+
+## Reference
+
+- Hajime Morita, Daisuke Kawahara, Sadao Kurohashi, "Morphological Analysis for Unsegmented Languages using Recurrent Neural Network Language Model", EMNLP, 2015.
+- Robert Speer, Joshua Chin, Catherine Havasi, "ConceptNet 5.5: An Open Multilingual Graph of General Knowledge", AAAI, 2017.
