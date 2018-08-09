@@ -31,6 +31,9 @@ You can see a sample input file. Put one word per one line.
 $ cat data/input.txt
 こんにちは
 こんにちわ
+こんにちは。
+こんにちは!
+こんにちは！
 いぬ
 犬
 イヌ
@@ -59,6 +62,9 @@ You'll get the result as a tab-separated file which includes original words and 
 $ cat data/output.txt
 こんにちは	0
 こんにちわ	0
+こんにちは。	0
+こんにちは!	0
+こんにちは！	0
 いぬ	1
 犬	1
 イヌ	1
