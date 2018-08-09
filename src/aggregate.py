@@ -3,6 +3,8 @@ import argparse
 import datetime
 import re
 import requests
+import string
+import unicodedata
 
 import progressbar
 import zenhan
@@ -40,7 +42,13 @@ def preprocess_word(words):
     :return: preprocessed word
 
     """
-    return [zenhan.h2z(word) for word in words]
+    # remove symbols
+    words = [unicodedata.normalize("NFKC", word) for word in words]
+    table = str.maketrans("", "", string.punctuation + "「」、。・")
+    words = [word.translate(table) for word in words]
+    # convert to zenkaku
+    words = [zenhan.h2z(word) for word in words]
+    return words
 
 
 def kansuji2arabic(kstring):
