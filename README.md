@@ -1,4 +1,4 @@
-# Japanese Name Aggregation
+# Japanese Word Aggregation
 
 A simple command-line tool to aggregate Japanese words.
 The aggregation is based on Juman++[Morita+ 15] and ConceptNet5.5[Speer+ 17].
@@ -10,22 +10,23 @@ The aggregation is based on Juman++[Morita+ 15] and ConceptNet5.5[Speer+ 17].
 - pyknp (see http://nlp.ist.i.kyoto-u.ac.jp/index.php?PyKNP)
 - progressbar
 - zenhan
+- and their dependencies
 
 ## Getting Started
 
 First, clone this repository.
 
 ```
-$ git clone　https://github.com/kiyomaro927/name-aggregation.git
+$ git clone　https://github.com/kiyomaro927/word-aggregation.git
 ```
 
 Then, enter the repository.
 
 ```
-$ cd name-aggregation/
+$ cd word-aggregation/
 ```
 
-You can see a sample input file. Put one word per one line.
+You can see a sample input file which includes one word per one line.
 
 ```
 $ cat data/input.txt
