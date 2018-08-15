@@ -17,13 +17,13 @@ The aggregation is based on Juman++[Morita+ 15] and ConceptNet5.5[Speer+ 17].
 First, clone this repository.
 
 ```
-$ git clone　https://github.com/kiyomaro927/word-aggregation.git
+$ git clone　https://github.com/kiyomaro927/japanese-word-aggregation.git
 ```
 
 Then, enter the repository.
 
 ```
-$ cd word-aggregation/
+$ cd japanese-word-aggregation/
 ```
 
 You can see a sample input file which includes one word per one line.
