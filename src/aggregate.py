@@ -1,4 +1,4 @@
-"""Aggregate name by Juman++ and ConceptNet."""
+"""Aggregate words by Juman++ and ConceptNet."""
 import argparse
 import datetime
 import re
@@ -9,6 +9,15 @@ import unicodedata
 import progressbar
 import zenhan
 from pyknp import Jumanpp
+
+
+class Word(object):
+
+    def __init__(self, surface, p_surface, alias, uid):
+        self.surface = surface
+        self.p_surface = p_surface
+        self.alias = alias
+        self.uid = uid
 
 
 def count_line(path):
@@ -26,28 +35,36 @@ def load_file(path):
     """
 
     :param path: path to input file
-    :return: data in the file
+    :return: a list of Word instances
 
     """
     n_line = count_line(path)
     bar = progressbar.ProgressBar()
     with open(path) as f:
-        return [word.strip() for word in bar(f, max_value=n_line)]
+        words = [Word(word.strip(), None, None, None) for word in bar(f, max_value=n_line)]
+    return words
 
 
 def preprocess_word(words):
     """
 
-    :param words: a list of words to be preprocessed
-    :return: preprocessed word
+    :param words: a list of Word instances
+    :return: a list of Word instances with the preprocessed expressions
 
     """
-    # remove symbols
-    words = [unicodedata.normalize("NFKC", word) for word in words]
-    table = str.maketrans("", "", string.punctuation + "「」、。・")
-    words = [word.translate(table) for word in words]
-    # convert to zenkaku
-    words = [zenhan.h2z(word) for word in words]
+    n_words = len(words)
+    for i in range(n_words):
+        word = words[i]
+        # remove symbols
+        preprocessed_word = unicodedata.normalize("NFKC", word.surface)
+        table = str.maketrans("", "", string.punctuation + "「」、。・")
+        preprocessed_word = preprocessed_word.translate(table)
+        # convert to zenkaku
+        preprocessed_word = zenhan.h2z(preprocessed_word)
+        # register preprocessed word
+        words[i].p_surface = preprocessed_word
+        words[i].alias = [preprocessed_word]
+        words[i].uid = i
     return words
 
 
@@ -106,98 +123,70 @@ def kansuji2arabic(kstring):
 def append_repname(words):
     """
 
-    :param words: words in input file
-    :return: a list of sets of original words and the representative names
+    :param words: a list of Word instances
+    :return: a list of Word instances with preprocessed words
+             with the representative expressions
 
     """
     n_word = len(words)
     juman = Jumanpp()
     bar = progressbar.ProgressBar()
-    repname_sets = []
-    for word in bar(words, max_value=n_word):
+    for i in bar(range(n_word), max_value=n_word):
+        word = words[i]
+
+        if word.uid != i:
+            continue  # already merged
+
         repname_set = []
-        midasi = ''
-        r = juman.analysis(word)
+        r = juman.analysis(word.p_surface)
         for mrph in r.mrph_list():
             if mrph.bunrui == '数詞':
-                repname_set.append(tuple([kansuji2arabic(mrph.midasi)]))
+                repname_set.append([kansuji2arabic(mrph.midasi)])
             elif mrph.repnames() != '':
-                repname_set.append(tuple(mrph.repnames().split('?')))
+                repname_set.append(mrph.repnames().split('?'))
             else:
-                repname_set.append(tuple([mrph.midasi]))
-            midasi += mrph.midasi
-        repname_sets.append(expand_ambiguity(repname_set) + tuple([midasi]))
-    return repname_sets
+                repname_set.append([mrph.midasi])
+        words[i].alias.extend(expand_ambiguity(repname_set))
+    return words
 
 
-def expand_ambiguity(repname):
+def append_synonym_and_formof(words):
     """
 
-    :param repname: a list of tuples which include the repname candidates for morphemes
+    :param words: a list of Word instances
+    :return: a list of Word instances with the relational words
+
+    """
+    n_word = len(words)
+    bar = progressbar.ProgressBar()
+    for i in bar(range(n_word), max_value=n_word):
+        word = words[i]
+        if word.uid != i:
+            continue  # already merged
+
+        nodes = []
+        for _alias in word.alias:
+            query = ''.join([mrph.split('/')[0] for mrph in _alias.split(' ')])
+            nodes.extend(request_conceptnet(query, rels=['Synonym', 'FormOf']))
+        words[i].alias.extend(nodes)
+    return words
+
+
+def expand_ambiguity(repname_set):
+    """
+
+    :param repname: a list of lists which include the repname candidates for morphemes
     :return: a list of repname candidates for morphemes
 
     """
-    def product_tuple(t1, t2):
-        return tuple([(_t1 + ' ' + _t2).strip() for _t1 in t1 for _t2 in t2])
-
-    expanded_repname = tuple([''])
-    for _repname in repname:
-        expanded_repname = product_tuple(expanded_repname, _repname)
-    return expanded_repname
+    expanded_repname_set = ['']
+    for repname in repname_set:
+        expanded_repname_set = product_list(expanded_repname_set, repname)
+    return expanded_repname_set
 
 
-def aggregate(words, repname_sets):
-    """
-
-    :param words: words in input file
-    :param repname_sets: a list of sets of original words and the representative names
-    :return: words with aggregated ID
-
-    """
-    # build a list of repname sets to be merged
-    print('[{}] Merging repname sets by the overlap... '.format(datetime.datetime.now()))
-    bar = progressbar.ProgressBar()
-    repname_sets_to_merge = [set(repname_sets[0])]
-    for repname_set in bar(repname_sets[1:], max_value=len(repname_sets)-1):
-        repname_set = set(repname_set)
-        for i, repname_set_to_merge in enumerate(repname_sets_to_merge):
-            if len(repname_set & repname_set_to_merge) > 0:
-                repname_sets_to_merge[i] = repname_set | repname_set_to_merge
-                break
-        else:
-            repname_sets_to_merge.append(repname_set)
-
-    # merge repname sets by using ConceptNet through the Web API
-    print('[{}] Merging repname sets by ConceptNet... '.format(datetime.datetime.now()))
-    bar = progressbar.ProgressBar()
-    merged = [False] * len(repname_sets_to_merge)
-    for i, repname_set_to_merge in bar(enumerate(repname_sets_to_merge), max_value=len(repname_sets_to_merge)):
-        if merged[i] is True:
-            continue
-
-        nodes = []
-        for repname in repname_set_to_merge:
-            query = ''.join([_repname.split('/')[0] for _repname in repname.split(' ')])
-            nodes.extend(request_conceptnet(query, rels=['Synonym', 'FormOf']))
-        for j, _repname_set_to_merge in enumerate(repname_sets_to_merge[i+1:]):
-            for repname in _repname_set_to_merge:
-                if ''.join([_repname.split('/')[0] for _repname in repname.split(' ')]) in nodes:
-                    repname_sets_to_merge[i] |= repname_sets_to_merge[i+j+1]
-                    merged[i+j+1] = True
-    repname_sets_to_merge = [s for s, flag in zip(repname_sets_to_merge, merged) if flag is False]
-
-    # assign IDs for each set
-    repname2id = {}
-    for i, repname_set in enumerate(repname_sets_to_merge):
-        for repname in repname_set:
-            repname2id[repname] = i
-
-    # assign IDs to words
-    word_with_id = []
-    for word, repname_set in zip(words, repname_sets):
-        repname = repname_set[0]
-        word_with_id.append((word, repname2id[repname]))
-    return word_with_id
+def product_list(t1, t2):
+    return [(_t1 + ' ' + _t2).strip() for _t1 in t1 for _t2 in t2]
 
 
 def request_conceptnet(query, rels):
@@ -205,7 +194,7 @@ def request_conceptnet(query, rels):
 
     :param query: a concept to request to ConceptNet
     :param rels: relations to filter edges
-    :return: concepts to which repname is connected by rels
+    :return: concepts to which the query is connected by rels
 
     """
     nodes = []
@@ -220,16 +209,58 @@ def request_conceptnet(query, rels):
     return nodes
 
 
-def save(path, out):
+def aggregate(words):
+    """
+
+    :param words: a list of Word instances
+    :return: a list of Word instances with the updated IDs
+
+    """
+    n_words = len(words)
+    bar = progressbar.ProgressBar()
+    for i in bar(range(n_words), max_value=n_words):
+        word = words[i]
+        if word.uid != i:
+            continue  # already merged
+
+        for j in range(i+1, n_words):
+            _word = words[j]
+            if _word.uid != j:
+                continue  # already merged
+
+            if len(set(word.alias) & set(_word.alias)) > 0:
+                words[i].alias = list(set(word.alias) | set(_word.alias))
+                words[j].uid = i
+    return words
+
+
+def postprocess_word(words):
+    """
+
+    :param words: a list of Word instances
+    :return: a list of Word instances with the serialized IDs
+
+    """
+    n_words = len(words)
+
+    uids = list(set([word.uid for word in words]))
+    translator = {uid: i for i, uid in enumerate(uids)}
+    bar = progressbar.ProgressBar()
+    for i in bar(range(n_words), max_value=n_words):
+        words[i].uid = translator[words[i].uid]
+    return words
+
+
+def save(path, words):
     """
 
     :param path: path to output file
-    :param out: words with ID
+    :param words: a list of Word instances
 
     """
     with open(path, 'w') as f:
-        for word, id in out:
-            f.write('{}\t{}\n'.format(word, id))
+        for word in words:
+            f.write('{}\t{}\n'.format(word.surface, word.uid))
 
 
 def main():
@@ -240,16 +271,26 @@ def main():
 
     print('[{}] Loading data... '.format(datetime.datetime.now()))
     words = load_file(args.IN)
-    prerprocessed_words = preprocess_word(words)
+    print('[{}] Preprocessing data... '.format(datetime.datetime.now()))
+    words = preprocess_word(words)
+    print('[{}] Merging words... '.format(datetime.datetime.now()))
+    words = aggregate(words)
 
-    print('[{}] Getting repname for data... '.format(datetime.datetime.now()))
-    repname_sets = append_repname(prerprocessed_words)  # include original words as well
+    print('[{}] Getting representative expressions for data... '.format(datetime.datetime.now()))
+    words = append_repname(words)
+    print('[{}] Merging words... '.format(datetime.datetime.now()))
+    words = aggregate(words)
 
-    print('[{}] Aggregating words... '.format(datetime.datetime.now()))
-    out = aggregate(words, repname_sets)
+    print('[{}] Getting relational words for data... '.format(datetime.datetime.now()))
+    words = append_synonym_and_formof(words)
+    print('[{}] Merging words... '.format(datetime.datetime.now()))
+    words = aggregate(words)
+
+    print('[{}] Postprocessing data... '.format(datetime.datetime.now()))
+    words = postprocess_word(words)
 
     print('[{}] Writing the result... '.format(datetime.datetime.now()))
-    save(args.OUT, out)
+    save(args.OUT, words)
 
 
 if __name__ == '__main__':
