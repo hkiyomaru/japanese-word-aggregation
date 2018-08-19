@@ -13,11 +13,12 @@ from pyknp import Jumanpp
 
 class Word(object):
 
-    def __init__(self, surface, p_surface, alias, uid):
+    def __init__(self, surface, p_surface, alias, uid, anc):
         self.surface = surface
         self.p_surface = p_surface
         self.alias = alias
         self.uid = uid
+        self.anc = anc  # ancestors
 
 
 def count_line(path):
@@ -41,7 +42,8 @@ def load_file(path):
     n_line = count_line(path)
     bar = progressbar.ProgressBar()
     with open(path) as f:
-        words = [Word(word.strip(), None, None, None) for word in bar(f, max_value=n_line)]
+        words = [Word(word.strip(), None, None, None, None)
+                 for word in bar(f, max_value=n_line)]
     return words
 
 
@@ -65,6 +67,7 @@ def preprocess_word(words):
         words[i].p_surface = preprocessed_word
         words[i].alias = [preprocessed_word]
         words[i].uid = i
+        words[i].anc = [i]
     return words
 
 
@@ -230,7 +233,9 @@ def aggregate(words):
 
             if len(set(word.alias) & set(_word.alias)) > 0:
                 words[i].alias = list(set(word.alias) | set(_word.alias))
-                words[j].uid = i
+                for k in words[j].anc:
+                    words[k].uid = i
+                    words[i].anc.append(k)
     return words
 
 
