@@ -49,6 +49,10 @@ $ cat data/input.txt
 12月
 １２月
 十二月
+1万円
+１万円
+10000円
+１００００円
 ```
 
 Run the script for aggregation.
@@ -80,6 +84,10 @@ $ cat data/output.txt
 12月	5
 １２月	5
 十二月	5
+1万円	6
+１万円	6
+10000円	6
+１００００円	6
 ```
 
 ## Lisence
