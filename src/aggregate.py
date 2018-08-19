@@ -1,6 +1,7 @@
 """Aggregate words by Juman++ and ConceptNet."""
 import argparse
 import datetime
+import itertools
 import re
 import requests
 import string
@@ -13,12 +14,15 @@ from pyknp import Jumanpp
 
 class Word(object):
 
-    def __init__(self, surface, p_surface, alias, uid, anc):
+    _uid = itertools.count(0)
+
+    def __init__(self, surface, p_surface, alias):
         self.surface = surface
         self.p_surface = p_surface
         self.alias = alias
-        self.uid = uid
-        self.anc = anc  # ancestors
+
+        self.uid = next(self._uid)
+        self.anc = [self.uid]  # ancestors
 
 
 def count_line(path):
@@ -42,8 +46,7 @@ def load_file(path):
     n_line = count_line(path)
     bar = progressbar.ProgressBar()
     with open(path) as f:
-        words = [Word(word.strip(), None, None, None, None)
-                 for word in bar(f, max_value=n_line)]
+        words = [Word(word.strip(), None, None) for word in bar(f, max_value=n_line)]
     return words
 
 
@@ -66,8 +69,6 @@ def preprocess_word(words):
         # register preprocessed word
         words[i].p_surface = preprocessed_word
         words[i].alias = [preprocessed_word]
-        words[i].uid = i
-        words[i].anc = [i]
     return words
 
 
